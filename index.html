@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聖杯挑戰賽 - 專業營運版</title>
+    <title>聖杯挑戰賽 - 排名校正版</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -14,14 +14,15 @@
         #leaderboard { width: 220px; background: rgba(30,5,5,0.95); border-right: 2px solid var(--gold); display: flex; flex-direction: column; flex-shrink: 0; }
         .rank-header { padding: 15px; text-align: center; border-bottom: 1px solid var(--gold); background: var(--red); color: white; }
         #rank-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .rank-item { display: flex; justify-content: space-between; padding: 8px 5px; border-bottom: 1px solid rgba(241,196,15,0.2); font-size: 0.8rem; }
+        .rank-item { display: flex; justify-content: space-between; padding: 10px 5px; border-bottom: 1px solid rgba(241,196,15,0.3); font-size: 0.9rem; transition: 0.3s; }
+        .rank-item.top { color: #fff; background: rgba(241,196,15,0.1); border-left: 3px solid var(--gold); }
 
-        /* 主區域佈局 */
+        /* 主區域 */
         .main-content { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
         #admin-panel { background: #4a1010; border-bottom: 2px solid var(--gold); padding: 10px; display: none; text-align: center; z-index: 100; }
-        .queue-btn { background: #8e44ad; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 4px; cursor: pointer; }
+        .queue-btn { background: #8e44ad; color: white; border: none; padding: 6px 12px; margin: 3px; border-radius: 4px; cursor: pointer; }
 
-        /* 遊戲與 3D 笅杯 */
+        /* 遊戲與動畫區 */
         .game-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .stage { perspective: 1200px; height: 160px; display: flex; justify-content: center; align-items: center; gap: 40px; margin: 30px 0; width: 100%; }
         .cup { width: 60px; height: 100px; position: relative; transform-style: preserve-3d; }
@@ -29,7 +30,7 @@
         .cup-front { background: #b30000; color: white; transform: rotateY(0deg); }
         .cup-back { background: #edc453; color: #8a4b00; transform: rotateY(180deg); }
 
-        /* 陽字轉正補償邏輯 */
+        /* 文字轉正補償 */
         .txt-fix { display: inline-block; font-weight: bold; font-size: 1.4rem; transform: rotateX(calc(var(--rev-x, 0deg))); }
         .txt-fix-back { display: inline-block; font-weight: bold; font-size: 1.4rem; transform: rotateY(180deg) rotateX(calc(var(--rev-x, 0deg))); }
 
@@ -40,7 +41,6 @@
         }
         .animating { animation: jiaoToss 1s cubic-bezier(0.1, 0.7, 0.3, 1) forwards; }
 
-        /* 按鈕與遮罩樣式 */
         .btn-toss { background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505; padding: 15px 50px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; }
         .btn-toss:disabled { background: #444; color: #888; }
         #login-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; }
@@ -52,7 +52,7 @@
 <body>
 
 <div id="leaderboard">
-    <div class="rank-header">🏆 功德榜</div>
+    <div class="rank-header">🏆 聖杯功德榜</div>
     <div id="rank-list"></div>
 </div>
 
@@ -60,24 +60,24 @@
     <div id="admin-panel">
         <div id="admin-queue-list"></div>
         <div style="margin-top:5px;">
-            <button onclick="db.ref('gameState').update({canToss:true})" style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px;">✅ 開啟擲笅權限</button>
-            <button onclick="db.ref('gameState').update({canToss:false})" style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:4px;">❌ 停止/中斷權限</button>
+            <button onclick="db.ref('gameState').update({canToss:true})" style="background:#27ae60; color:white; border:none; padding:5px 12px; border-radius:4px;">✅ 開啟擲笅</button>
+            <button onclick="db.ref('gameState').update({canToss:false})" style="background:#c0392b; color:white; border:none; padding:5px 12px; border-radius:4px;">❌ 停止權限</button>
         </div>
     </div>
 
     <div id="login-overlay">
         <div class="login-card">
-            <h2 style="margin-top:0;">🙏 登記擲笅</h2>
-            <input type="text" id="join-name" placeholder="請輸入您的姓名" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; margin-bottom:15px;">
-            <div style="margin-bottom:10px; font-weight:bold;">驗證碼：<span id="captcha-ques" style="color:white;"></span></div>
-            <input type="number" id="captcha-ans" placeholder="計算答案" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; margin-bottom:20px;">
+            <h2>🙏 登記參賽</h2>
+            <input type="text" id="join-name" placeholder="輸入姓名" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; margin-bottom:15px;">
+            <div style="margin-bottom:10px;">驗證：<span id="captcha-ques"></span></div>
+            <input type="number" id="captcha-ans" placeholder="答案" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; margin-bottom:20px;">
             <button class="btn-toss" style="font-size:1.1rem; padding:10px 0; width:100%;" onclick="doVerifiedJoin()">進入排隊</button>
         </div>
     </div>
 
     <div class="game-area">
         <h2 id="current-user-tag">載入中...</h2>
-        <div style="font-size: 2.2rem; font-weight: bold; color:#ff4d4d; margin-bottom: 10px;">連續聖杯：<span id="sheng-count">0</span></div>
+        <div style="font-size: 2.2rem; font-weight: bold; color:#ff4d4d;">挑戰聖杯：<span id="sheng-count">0</span></div>
         
         <div class="stage">
             <div id="c1" class="cup">
@@ -90,13 +90,12 @@
             </div>
         </div>
         
-        <div id="status-msg" style="height:30px; margin-bottom:15px; font-weight:bold; color:white;"></div>
+        <div id="status-msg" style="height:30px; margin-bottom:15px; font-weight:bold;"></div>
         <button id="toss-btn" class="btn-toss" onclick="handleToss()" disabled>等待擲笅</button>
     </div>
 </div>
 
 <script>
-    // Firebase Config (請確保資料庫 URL 正確)
     const firebaseConfig = {
         apiKey: "AIzaSyD2Jw4ZZlCKzL0eLfH5znZidiUXpNjLTi0",
         authDomain: "templegame-ae6b2.firebaseapp.com",
@@ -132,7 +131,6 @@
         const ans = parseInt(document.getElementById('captcha-ans').value);
         if(!name) return alert("請輸入姓名！");
         if(ans !== correctCaptcha) { alert("驗證碼錯誤！"); genCaptcha(); return; }
-        
         myName = name;
         db.ref('queue/' + myName).set({ name: myName, time: Date.now() });
         db.ref('queue/' + myName).onDisconnect().remove();
@@ -140,13 +138,11 @@
         document.getElementById('current-user-tag').innerText = "信眾：" + myName;
     }
 
-    // 按鈕權限與文字同步
     db.ref('gameState').on('value', snap => {
         const state = snap.val() || {};
         const active = state.activeUser || "";
         const can = state.canToss || false;
         const btn = document.getElementById('toss-btn');
-
         if (myName === active) {
             btn.innerText = can ? "擲 笅" : "等待擲笅";
             btn.disabled = !can;
@@ -154,9 +150,9 @@
             btn.innerText = "等待擲笅";
             btn.disabled = true;
         }
+        if(!isAdmin) document.getElementById('current-user-tag').innerText = active ? `目前進行：${active}` : "等待開始";
     });
 
-    // 核心：擲笅邏輯與數據隔離更新
     function handleToss() {
         const btn = document.getElementById('toss-btn');
         btn.disabled = true;
@@ -175,12 +171,17 @@
             document.getElementById('status-msg').innerText = "結果：" + res;
             
             if (res === "聖杯") {
-                // 1. 更新全局當前挑戰分數
-                db.ref('currentSheng').transaction(c => {
-                    const newCount = (c || 0) + 1;
-                    // 2. 僅更新「我本人」在功德榜的最高分
-                    db.ref('leaderboard/' + myName).transaction(old => Math.max(old || 0, newCount));
-                    return newCount;
+                // 核心修正 1：先獲取最新計數，再分別更新
+                db.ref('currentSheng').transaction(current => {
+                    const nextCount = (current || 0) + 1;
+                    
+                    // 核心修正 2：明確指定更新「我本人」的紀錄，不參考 currentSheng
+                    // 這樣就算別人的 currentSheng 變動，也不會寫入我的紀錄
+                    db.ref('leaderboard/' + myName).transaction(oldRecord => {
+                        return Math.max(oldRecord || 0, nextCount);
+                    });
+                    
+                    return nextCount;
                 });
                 btn.disabled = false;
             } else {
@@ -189,6 +190,27 @@
             db.ref('history').push({ name: myName, res: res, time: Date.now() });
         }, 1000);
     }
+
+    // 核心修正 3：功德榜渲染邏輯
+    db.ref('leaderboard').on('value', snap => {
+        let scores = [];
+        snap.forEach(child => {
+            scores.push({ name: child.key, val: child.val() });
+        });
+        
+        // 前端手動進行降序排序 (由大到小)
+        scores.sort((a, b) => b.val - a.val);
+        
+        let html = "";
+        scores.forEach((item, index) => {
+            const isFirst = index === 0 && item.val > 0;
+            html += `<div class="rank-item ${isFirst ? 'top' : ''}">
+                        <span>${index + 1}. ${item.name}</span>
+                        <b>${item.val} 次</b>
+                     </div>`;
+        });
+        document.getElementById('rank-list').innerHTML = html || "尚無紀錄";
+    });
 
     function listenToQueue() {
         db.ref('queue').on('value', snap => {
@@ -206,16 +228,6 @@
         db.ref('queue/' + name).remove();
         db.ref('currentSheng').set(0);
     }
-
-    // 監聽並渲染功德榜 (每個人獨立紀錄)
-    db.ref('leaderboard').orderByValue().on('value', snap => {
-        let list = []; snap.forEach(c => { list.push({name:c.key, score:c.val()}); });
-        list.reverse();
-        let html = ""; list.forEach((u, i) => {
-            html += `<div class="rank-item"><span>${i+1}.${u.name}</span><b>${u.score}次</b></div>`;
-        });
-        document.getElementById('rank-list').innerHTML = html;
-    });
 
     db.ref('currentSheng').on('value', snap => {
         document.getElementById('sheng-count').innerText = snap.val() || 0;
