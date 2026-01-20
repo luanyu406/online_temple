@@ -3,58 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聖杯挑戰賽 - 位置校正版</title>
+    <title>聖杯挑戰賽 - 安全驗證版</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
         :root { --gold: #f1c40f; --red: #8b0000; --dark: #1a0505; }
         body { margin: 0; background: var(--dark); color: var(--gold); font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
 
-        /* 左側功德榜 - 保持寬度固定，不壓縮主區 */
-        #leaderboard { 
-            width: 220px; background: rgba(30,5,5,0.95); border-right: 2px solid var(--gold); 
-            display: flex; flex-direction: column; flex-shrink: 0; 
-        }
+        /* 左側功德榜 */
+        #leaderboard { width: 220px; background: rgba(30,5,5,0.95); border-right: 2px solid var(--gold); display: flex; flex-direction: column; flex-shrink: 0; }
         .rank-header { padding: 15px; text-align: center; border-bottom: 1px solid var(--gold); background: var(--red); color: white; }
         #rank-list { flex: 1; overflow-y: auto; padding: 10px; }
         .rank-item { display: flex; justify-content: space-between; padding: 8px 5px; border-bottom: 1px solid rgba(241,196,15,0.2); font-size: 0.8rem; }
 
-        /* 主遊戲區 - 使用自適應置中 */
+        /* 主區域 */
         .main-content { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
-
-        /* 管理員面板 */
         #admin-panel { background: #4a1010; border-bottom: 2px solid var(--gold); padding: 10px; display: none; text-align: center; z-index: 100; }
         .queue-btn { background: #8e44ad; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 4px; cursor: pointer; }
 
-        /* 遊戲顯示區 */
+        /* 遊戲與動畫 */
         .game-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-
-        /* 3D 笅杯區 - 位置校正 */
-        .stage { 
-            perspective: 1200px; height: 160px; display: flex; justify-content: center; 
-            align-items: center; gap: 40px; margin: 30px 0; width: 100%; 
-        }
+        .stage { perspective: 1200px; height: 160px; display: flex; justify-content: center; align-items: center; gap: 40px; margin: 30px 0; width: 100%; }
         .cup { width: 60px; height: 100px; position: relative; transform-style: preserve-3d; }
-        .cup-side { 
-            position: absolute; width: 100%; height: 100%; backface-visibility: hidden; 
-            border-radius: 50% 10% 10% 50% / 50% 10% 10% 50%; 
-            display: flex; align-items: center; justify-content: center; 
-        }
-        
+        .cup-side { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 50% 10% 10% 50% / 50% 10% 10% 50%; display: flex; align-items: center; justify-content: center; }
         .cup-front { background: #b30000; color: white; transform: rotateY(0deg); }
         .cup-back { background: #edc453; color: #8a4b00; transform: rotateY(180deg); }
 
-        /* 文字轉正補償 - 確保水平垂直置中 */
-        .txt-fix { 
-            display: inline-block; font-weight: bold; font-size: 1.4rem;
-            /* 抵消父層的旋轉 X */
-            transform: rotateX(calc(var(--rev-x, 0deg))); 
-        }
-        /* 陽面文字需要先水平翻轉回來再抵消 X */
-        .txt-fix-back {
-            display: inline-block; font-weight: bold; font-size: 1.4rem;
-            transform: rotateY(180deg) rotateX(calc(var(--rev-x, 0deg)));
-        }
+        /* 文字補償 (當父層 rotateX 時，子層反向 rotateX) */
+        .txt-fix { display: inline-block; font-weight: bold; font-size: 1.4rem; transform: rotateX(calc(var(--rev-x, 0deg))); }
+        .txt-fix-back { display: inline-block; font-weight: bold; font-size: 1.4rem; transform: rotateY(180deg) rotateX(calc(var(--rev-x, 0deg))); }
 
         @keyframes jiaoToss {
             0% { transform: translateY(0) rotateX(0); --rev-x: 0deg; }
@@ -63,10 +40,11 @@
         }
         .animating { animation: jiaoToss 1s cubic-bezier(0.1, 0.7, 0.3, 1) forwards; }
 
-        .btn-toss { background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505; padding: 15px 50px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; transition: 0.2s; }
-        .btn-toss:disabled { background: #444; color: #888; transform: scale(0.95); }
-
+        /* 按鈕與遮罩 */
+        .btn-toss { background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505; padding: 15px 50px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; }
+        .btn-toss:disabled { background: #444; color: #888; }
         #login-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .login-card { background:#222; padding:30px; border:1px solid var(--gold); border-radius:15px; text-align:center; width: 280px; }
         
         @media (max-width: 768px) { #leaderboard { display: none; } }
     </style>
@@ -88,10 +66,12 @@
     </div>
 
     <div id="login-overlay">
-        <div style="background:#222; padding:30px; border:1px solid var(--gold); border-radius:15px; text-align:center;">
-            <h2>🙏 參加擲笅登記</h2>
-            <input type="text" id="join-name" placeholder="輸入姓名" style="padding:10px; width:180px; text-align:center;"><br><br>
-            <button class="btn-toss" style="font-size:1.1rem; padding:10px 30px;" onclick="doJoin()">進入排隊</button>
+        <div class="login-card">
+            <h2 style="margin-top:0;">🙏 登記擲笅</h2>
+            <input type="text" id="join-name" placeholder="請輸入您的姓名" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; margin-bottom:15px;">
+            <div style="margin-bottom:10px; font-weight:bold;">驗證碼：<span id="captcha-ques" style="color:white;"></span></div>
+            <input type="number" id="captcha-ans" placeholder="計算答案" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; margin-bottom:20px;">
+            <button class="btn-toss" style="font-size:1.1rem; padding:10px 0; width:100%;" onclick="doVerifiedJoin()">進入排隊</button>
         </div>
     </div>
 
@@ -110,13 +90,13 @@
             </div>
         </div>
         
-        <div id="status-msg" style="height:30px; margin-bottom:15px; font-weight:bold;"></div>
+        <div id="status-msg" style="height:30px; margin-bottom:15px; font-weight:bold; color:white;"></div>
         <button id="toss-btn" class="btn-toss" onclick="handleToss()" disabled>等待擲笅</button>
     </div>
 </div>
 
 <script>
-    // Firebase Config (請替換回您自己的 API Key 資料)
+    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyD2Jw4ZZlCKzL0eLfH5znZidiUXpNjLTi0",
         authDomain: "templegame-ae6b2.firebaseapp.com",
@@ -129,7 +109,18 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'y';
+    
     let myName = "";
+    let correctCaptcha = 0;
+
+    // 產生驗證碼
+    function genCaptcha() {
+        const a = Math.floor(Math.random() * 9) + 1;
+        const b = Math.floor(Math.random() * 9) + 1;
+        correctCaptcha = a + b;
+        document.getElementById('captcha-ques').innerText = `${a} + ${b} = ?`;
+    }
+    genCaptcha();
 
     if (isAdmin) {
         document.getElementById('admin-panel').style.display = 'block';
@@ -137,9 +128,17 @@
         listenToQueue();
     }
 
-    function doJoin() {
+    function doVerifiedJoin() {
         const name = document.getElementById('join-name').value.trim();
-        if(!name) return;
+        const ans = parseInt(document.getElementById('captcha-ans').value);
+        
+        if(!name) return alert("請輸入姓名！");
+        if(ans !== correctCaptcha) {
+            alert("驗證碼錯誤，請重新計算！");
+            genCaptcha();
+            return;
+        }
+        
         myName = name;
         db.ref('queue/' + myName).set({ name: myName, time: Date.now() });
         db.ref('queue/' + myName).onDisconnect().remove();
@@ -147,7 +146,7 @@
         document.getElementById('current-user-tag').innerText = "信眾：" + myName;
     }
 
-    // 監聽權限與按鈕切換
+    // 監聽狀態切換按鈕文字
     db.ref('gameState').on('value', snap => {
         const state = snap.val() || {};
         const active = state.activeUser || "";
@@ -178,6 +177,7 @@
 
         setTimeout(() => {
             let res = (r1 !== r2) ? "聖杯" : (r1 === 0 ? "笑杯" : "陰杯");
+            document.getElementById('status-msg').innerText = "結果：" + res;
             if (res === "聖杯") {
                 db.ref('currentSheng').transaction(c => (c || 0) + 1);
                 btn.disabled = false;
@@ -188,6 +188,7 @@
         }, 1000);
     }
 
+    // 管理員與數據監聽 (同前)
     function listenToQueue() {
         db.ref('queue').on('value', snap => {
             const list = snap.val() || {};
