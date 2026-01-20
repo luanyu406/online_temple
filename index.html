@@ -3,103 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聖杯挑戰賽 - 雲端穩定版</title>
+    <title>聖杯挑戰賽 - 專業控場版</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
-        :root {
-            --gold: #f1c40f;
-            --red: #8b0000;
-            --dark-bg: #1a0505;
-        }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body {
-            margin: 0; background-color: var(--dark-bg); color: var(--gold);
-            font-family: "PingFang TC", "Microsoft JhengHei", serif;
-            display: flex; flex-direction: column; min-height: 100vh;
-        }
+        :root { --gold: #f1c40f; --red: #8b0000; --dark: #1a0505; }
+        body { margin: 0; background: var(--dark); color: var(--gold); font-family: sans-serif; display: flex; flex-direction: column; min-height: 100vh; }
+        
+        /* 管理員專屬面板 */
+        #admin-panel { background: #2d0a0a; border-bottom: 3px solid var(--gold); padding: 15px; display: none; }
+        .queue-item { display: inline-block; background: #8e44ad; color: white; padding: 5px 10px; margin: 5px; border-radius: 5px; cursor: pointer; }
+        .queue-item:hover { background: #9b59b6; }
 
-        /* 主持人控制台 */
-        #admin-panel {
-            background: #2d0a0a; border-bottom: 2px solid var(--gold);
-            padding: 15px; display: none; text-align: center;
-        }
-        .admin-btn { background: #27ae60; color: white; border: none; padding: 10px 15px; margin: 5px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        /* 入口畫面與驗證碼 */
+        #login-overlay { position: fixed; inset: 0; background: radial-gradient(circle, #4a1010, #0d0202); z-index: 2000; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .login-box { background: rgba(0,0,0,0.6); padding: 30px; border: 2px solid var(--gold); border-radius: 20px; width: 90%; max-width: 400px; }
+        input { padding: 12px; margin: 10px 0; width: 80%; border-radius: 5px; border: 1px solid var(--gold); text-align: center; font-size: 1rem; }
 
-        /* 入口畫面 */
-        #login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, #4a1010 0%, #0d0202 100%);
-            z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .input-group { background: rgba(45,10,10,0.9); padding: 30px; border-radius: 20px; border: 2px solid var(--gold); text-align: center; }
-
-        /* 遊戲主區 */
-        .main-container { flex: 1; padding: 20px; text-align: center; }
+        /* 3D 動畫區 */
         .stage { perspective: 1200px; height: 180px; display: flex; justify-content: center; align-items: center; gap: 30px; margin: 20px 0; }
         .cup { width: 60px; height: 100px; position: relative; transform-style: preserve-3d; }
-        .cup-side { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 50% 10% 10% 50% / 50% 10% 10% 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; }
-        .cup-front { background: linear-gradient(135deg, #b30000, #600000); transform: rotateY(0deg); color: white; }
-        .cup-back { background: linear-gradient(135deg, #ffedbc, #edc453); transform: rotateY(180deg); color: #8a4b00; }
-        
+        .cup-side { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 50% 10% 10% 50% / 50% 10% 10% 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .cup-front { background: #b30000; color: white; transform: rotateY(0deg); }
+        .cup-back { background: #edc453; color: #8a4b00; transform: rotateY(180deg); }
+        .animating { animation: toss 1.2s cubic-bezier(0.1, 0.8, 0.3, 1.2) forwards; }
         @keyframes toss {
             0% { transform: translateY(0) rotateX(0); }
             50% { transform: translateY(-200px) rotateX(720deg) rotateY(360deg); }
             100% { transform: translateY(0) rotateX(var(--final-x)) rotateY(0deg); }
         }
-        .animating { animation: toss 1.2s cubic-bezier(0.1, 0.8, 0.3, 1.2) forwards; }
 
-        .btn-toss {
-            background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505;
-            padding: 15px 50px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer;
-        }
-        .btn-toss:disabled { background: #444; color: #888; cursor: not-allowed; }
+        .btn-toss { background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505; padding: 15px 40px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; }
+        .btn-toss:disabled { opacity: 0.3; cursor: not-allowed; }
         
-        .history-box { width: 100%; max-width: 400px; margin: 20px auto; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 10px; font-size: 0.9rem; }
-        .history-row { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .history { width: 90%; max-width: 500px; margin: 20px auto; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; }
+        .row { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #333; }
     </style>
 </head>
 <body>
 
 <div id="admin-panel">
-    <h3>👑 主持人控制台</h3>
-    <div id="online-list">等待信眾加入...</div>
-    <div style="margin-top: 10px;">
-        <button class="admin-btn" onclick="setControl(true)">✅ 開啟當前權限</button>
-        <button class="admin-btn" style="background:#c0392b" onclick="setControl(false)">❌ 收回權限</button>
-        <button class="admin-btn" style="background:#555" onclick="clearAll()">🧹 重置全場</button>
+    <h3>👑 主持人控制台 (即時戰況)</h3>
+    <div id="queue-display">等待信眾排隊中...</div>
+    <div style="margin-top:10px">
+        <button onclick="db.ref('gameState').update({canToss:true})" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:5px;">✅ 開啟擲笅</button>
+        <button onclick="db.ref('gameState').update({canToss:false})" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:5px;">❌ 停止權限</button>
+        <button onclick="if(confirm('重置？'))db.ref('/').remove()" style="background:#555; color:white; border:none; padding:8px 15px; border-radius:5px;">🧹 重置資料</button>
     </div>
 </div>
 
 <div id="login-overlay">
-    <div class="input-group">
-        <h2 style="color:var(--gold)">聖杯挑戰賽</h2>
-        <input type="text" id="user-input" placeholder="請輸入大名" style="padding:10px; width:180px; text-align:center; font-size:1.2rem; border-radius:5px; border:1px solid var(--gold); outline:none;">
+    <div class="login-box">
+        <h2>🙏 進入廟宇排隊</h2>
+        <input type="text" id="user-name" placeholder="請輸入姓名">
+        <div style="margin: 10px 0; font-weight: bold;">防機器人驗證：<span id="captcha-question"></span></div>
+        <input type="number" id="captcha-answer" placeholder="請輸入答案">
         <br><br>
-        <button class="btn-toss" onclick="joinGame()">進入會場</button>
+        <button class="btn-toss" onclick="checkAndJoin()">確認進入</button>
     </div>
 </div>
 
-<div class="main-container">
-    <h2 id="display-name">信眾：尚未加入</h2>
-    <div style="font-size: 2.5rem; color: #ff4d4d; font-weight: bold;">聖杯：<span id="count">0</span></div>
+<div style="text-align: center; padding: 20px;">
+    <h2 id="current-info">請先登入</h2>
+    <div style="font-size: 3rem; color: #ff4d4d; font-weight: bold;">聖杯：<span id="count">0</span></div>
     
     <div class="stage">
         <div id="c1" class="cup"><div class="cup-side cup-front">陰</div><div class="cup-side cup-back">陽</div></div>
         <div id="c2" class="cup"><div class="cup-side cup-front">陰</div><div class="cup-side cup-back">陽</div></div>
     </div>
-
-    <div id="status-msg" style="height:30px; margin-bottom:15px; font-size:1.2rem; color: #fff;"></div>
+    <div id="status-msg" style="height:30px; font-size:1.2rem; margin-bottom:10px;"></div>
     <button id="toss-btn" class="btn-toss" onclick="handleToss()" disabled>等待點名</button>
+</div>
 
-    <div class="history-box">
-        <div style="border-bottom: 1px solid var(--gold); margin-bottom: 5px;">📜 全場同步紀錄</div>
-        <div id="history-content"></div>
-    </div>
+<div class="history">
+    <div style="text-align:center; font-weight:bold; color:var(--gold); border-bottom:1px solid var(--gold); padding-bottom:5px;">📜 全場動態</div>
+    <div id="history-content"></div>
 </div>
 
 <script>
-    // 您的 Firebase 配置 (已校對)
+    // Firebase 配置 (與之前相同)
     const firebaseConfig = {
         apiKey: "AIzaSyD2Jw4ZZlCKzL0eLfH5znZidiUXpNjLTi0",
         authDomain: "templegame-ae6b2.firebaseapp.com",
@@ -109,119 +91,114 @@
         messagingSenderId: "32887114990",
         appId: "1:32887114990:web:490dd8bd971211002c77ff"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'y';
+    
     let myName = "";
-    let myShengCount = 0;
+    let captchaRes = 0;
+
+    // 產生隨機驗證碼
+    function genCaptcha() {
+        const a = Math.floor(Math.random() * 10);
+        const b = Math.floor(Math.random() * 10);
+        captchaRes = a + b;
+        document.getElementById('captcha-question').innerText = `${a} + ${b} = ?`;
+    }
+    genCaptcha();
 
     if (isAdmin) {
         document.getElementById('admin-panel').style.display = 'block';
-        listenOnline();
-    }
-
-    function joinGame() {
-        const name = document.getElementById('user-input').value.trim();
-        if(!name) return alert("請輸入大名！");
-        myName = name;
-        document.getElementById('display-name').innerText = "信眾：" + myName;
         document.getElementById('login-overlay').style.display = 'none';
-        
-        // 註冊在線
-        const ref = db.ref('online/' + myName);
-        ref.set(true);
-        ref.onDisconnect().remove();
+        listenQueue();
     }
 
-    // 監聽權限 (核心修正點)
-    db.ref('gameState').on('value', (snap) => {
+    function checkAndJoin() {
+        const name = document.getElementById('user-name').value.trim();
+        const ans = parseInt(document.getElementById('captcha-answer').value);
+        if(!name) return alert("請輸入姓名");
+        if(ans !== captchaRes) {
+            alert("驗證碼錯誤，請重新計算！");
+            genCaptcha();
+            return;
+        }
+        myName = name;
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('current-info').innerText = "信眾：" + myName;
+        // 加入排隊名單
+        db.ref('queue/' + myName).set({ name: myName, time: Date.now() });
+        db.ref('queue/' + myName).onDisconnect().remove();
+    }
+
+    // 監聽全局狀態
+    db.ref('gameState').on('value', snap => {
         const data = snap.val() || {};
-        const activeUser = data.activeUser || "";
-        const canToss = data.canToss || false;
-
-        const msg = document.getElementById('status-msg');
+        const active = data.activeUser || "";
+        const can = data.canToss || false;
         const btn = document.getElementById('toss-btn');
+        const msg = document.getElementById('status-msg');
 
-        if (myName === activeUser) {
-            if (canToss) {
-                msg.innerText = "✨ 神明准許，請擲笅！";
-                btn.disabled = false;
-            } else {
-                msg.innerText = "⏳ 請等待主持人開啟權限";
-                btn.disabled = true;
-            }
+        if (isAdmin) {
+            document.getElementById('current-info').innerText = active ? `正在擲：${active}` : "等待開始";
         } else {
-            msg.innerText = activeUser ? `輪到 ${activeUser} 擲笅中` : "等待主持人點名...";
-            btn.disabled = true;
+            if (active === myName) {
+                btn.disabled = !can;
+                msg.innerText = can ? "🌟 輪到你了，請擲笅！" : "⏳ 等待主持人開啟權限";
+            } else {
+                btn.disabled = true;
+                msg.innerText = active ? `輪到 ${active} 擲笅中` : "等待排隊點名";
+            }
         }
     });
 
-    // 監聽紀錄
-    db.ref('history').limitToLast(8).on('value', (snap) => {
+    // 歷史紀錄同步
+    db.ref('history').limitToLast(10).on('value', snap => {
         const data = snap.val();
         let html = "";
-        if (data) {
-            Object.values(data).reverse().forEach(v => {
-                html += `<div class="history-row"><span>${v.name}</span><span style="color:${v.res==='聖杯'?'#00ff00':'#ff4d4d'}">${v.res}</span></div>`;
-            });
-        }
+        if(data) Object.values(data).reverse().forEach(v => {
+            html += `<div class="row"><span>${v.name}</span><span style="color:${v.res==='聖杯'?'#00ff00':'#ff4d4d'}">${v.res}</span></div>`;
+        });
         document.getElementById('history-content').innerHTML = html;
     });
 
+    // 管理員監聽排隊
+    function listenQueue() {
+        db.ref('queue').on('value', snap => {
+            const list = snap.val() || {};
+            let html = "<b>信眾排隊中 (點擊名字開始)：</b><br>";
+            Object.keys(list).forEach(p => {
+                html += `<span class="queue-item" onclick="startPlayer('${p}')">${p}</span>`;
+            });
+            document.getElementById('queue-display').innerHTML = html;
+        });
+    }
+
+    function startPlayer(name) {
+        db.ref('gameState').set({ activeUser: name, canToss: false });
+    }
+
+    // 3D 擲笅邏輯 (同前)
     function handleToss() {
-        const btn = document.getElementById('toss-btn');
-        btn.disabled = true;
-        
+        document.getElementById('toss-btn').disabled = true;
         const r1 = Math.random() > 0.5 ? 0 : 180;
         const r2 = Math.random() > 0.5 ? 0 : 180;
-
-        const c1 = document.getElementById('c1');
-        const c2 = document.getElementById('c2');
-        
+        const c1 = document.getElementById('c1'), c2 = document.getElementById('c2');
         c1.style.setProperty('--final-x', (1440 + r1) + 'deg');
         c2.style.setProperty('--final-x', (1440 + r2) + 'deg');
-        
         c1.classList.remove('animating'); c2.classList.remove('animating');
         void c1.offsetWidth;
         c1.classList.add('animating'); c2.classList.add('animating');
 
         setTimeout(() => {
-            let res = "";
-            if (r1 !== r2) {
-                res = "聖杯";
-                myShengCount++;
-                document.getElementById('count').innerText = myShengCount;
-                btn.disabled = false;
+            let res = (r1 !== r2) ? "聖杯" : (r1 === 0 ? "笑杯" : "陰杯");
+            if (res === "聖杯") {
+                document.getElementById('count').innerText = parseInt(document.getElementById('count').innerText) + 1;
+                document.getElementById('toss-btn').disabled = false;
             } else {
-                res = (r1 === 0) ? "笑杯" : "陰杯";
-                // 失敗後通知雲端鎖定
                 db.ref('gameState').update({ canToss: false });
             }
-            document.getElementById('status-msg').innerText = "【 " + res + " 】";
             db.ref('history').push({ name: myName, res: res, time: Date.now() });
         }, 1200);
-    }
-
-    // 主持人功能
-    function listenOnline() {
-        db.ref('online').on('value', (snap) => {
-            const list = snap.val() || {};
-            let html = "在線信眾：";
-            Object.keys(list).forEach(p => {
-                html += `<button class="admin-btn" style="background:#8e44ad" onclick="selectPlayer('${p}')">${p}</button>`;
-            });
-            document.getElementById('online-list').innerHTML = html;
-        });
-    }
-    function selectPlayer(name) {
-        db.ref('gameState').set({ activeUser: name, canToss: false });
-    }
-    function setControl(val) {
-        db.ref('gameState').update({ canToss: val });
-    }
-    function clearAll() {
-        if(confirm("確定清空全場數據？")) db.ref('/').remove();
     }
 </script>
 </body>
