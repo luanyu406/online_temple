@@ -6,8 +6,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>線上擲笅 - 雲端互動版</title>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
         :root {
             --gold: #f1c40f;
@@ -105,10 +105,10 @@
 </div>
 
 <script>
-    // 您的 Firebase 配置 (已套用您上傳的參數)
     const firebaseConfig = {
         apiKey: "AIzaSyD2Jw4ZZlCKzL0eLfH5znZidiUXpNjLTi0",
         authDomain: "templegame-ae6b2.firebaseapp.com",
+        // 修正重點：確保資料庫網址完全正確
         databaseURL: "https://templegame-ae6b2-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "templegame-ae6b2",
         storageBucket: "templegame-ae6b2.firebasestorage.app",
@@ -116,8 +116,18 @@
         appId: "1:32887114990:web:490dd8bd971211002c77ff"
     };
 
+    // 初始化
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
+    // 檢查連線狀態 (除錯用)
+    db.ref(".info/connected").on("value", (snap) => {
+        if (snap.val() === true) {
+            console.log("連線成功！");
+        } else {
+            console.log("連線失敗，請檢查規則設定。");
+        }
+    });
 
     let myName = "";
     let shengCount = 0;
