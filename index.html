@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聖杯挑戰賽 - 排名校正版</title>
+    <title>聖杯挑戰賽 - 營運管理版</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -14,15 +14,18 @@
         #leaderboard { width: 220px; background: rgba(30,5,5,0.95); border-right: 2px solid var(--gold); display: flex; flex-direction: column; flex-shrink: 0; }
         .rank-header { padding: 15px; text-align: center; border-bottom: 1px solid var(--gold); background: var(--red); color: white; }
         #rank-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .rank-item { display: flex; justify-content: space-between; padding: 10px 5px; border-bottom: 1px solid rgba(241,196,15,0.3); font-size: 0.9rem; transition: 0.3s; }
+        .rank-item { display: flex; justify-content: space-between; padding: 10px 5px; border-bottom: 1px solid rgba(241,196,15,0.3); font-size: 0.9rem; }
         .rank-item.top { color: #fff; background: rgba(241,196,15,0.1); border-left: 3px solid var(--gold); }
 
         /* 主區域 */
         .main-content { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
-        #admin-panel { background: #4a1010; border-bottom: 2px solid var(--gold); padding: 10px; display: none; text-align: center; z-index: 100; }
+        
+        /* 強化主持人面板 */
+        #admin-panel { background: #4a1010; border-bottom: 2px solid var(--gold); padding: 12px; display: none; text-align: center; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .queue-btn { background: #8e44ad; color: white; border: none; padding: 6px 12px; margin: 3px; border-radius: 4px; cursor: pointer; }
+        .admin-ctrl-btn { color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin: 0 5px; }
 
-        /* 遊戲與動畫區 */
+        /* 遊戲區 */
         .game-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .stage { perspective: 1200px; height: 160px; display: flex; justify-content: center; align-items: center; gap: 40px; margin: 30px 0; width: 100%; }
         .cup { width: 60px; height: 100px; position: relative; transform-style: preserve-3d; }
@@ -30,7 +33,7 @@
         .cup-front { background: #b30000; color: white; transform: rotateY(0deg); }
         .cup-back { background: #edc453; color: #8a4b00; transform: rotateY(180deg); }
 
-        /* 文字轉正補償 */
+        /* 文字補正 */
         .txt-fix { display: inline-block; font-weight: bold; font-size: 1.4rem; transform: rotateX(calc(var(--rev-x, 0deg))); }
         .txt-fix-back { display: inline-block; font-weight: bold; font-size: 1.4rem; transform: rotateY(180deg) rotateX(calc(var(--rev-x, 0deg))); }
 
@@ -43,6 +46,7 @@
 
         .btn-toss { background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505; padding: 15px 50px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; }
         .btn-toss:disabled { background: #444; color: #888; }
+        
         #login-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .login-card { background:#222; padding:30px; border:1px solid var(--gold); border-radius:15px; text-align:center; width: 280px; }
         
@@ -58,10 +62,11 @@
 
 <div class="main-content">
     <div id="admin-panel">
-        <div id="admin-queue-list"></div>
-        <div style="margin-top:5px;">
-            <button onclick="db.ref('gameState').update({canToss:true})" style="background:#27ae60; color:white; border:none; padding:5px 12px; border-radius:4px;">✅ 開啟擲笅</button>
-            <button onclick="db.ref('gameState').update({canToss:false})" style="background:#c0392b; color:white; border:none; padding:5px 12px; border-radius:4px;">❌ 停止權限</button>
+        <div id="admin-queue-list" style="margin-bottom: 10px; min-height: 20px;"></div>
+        <div>
+            <button class="admin-ctrl-btn" onclick="db.ref('gameState').update({canToss:true})" style="background:#27ae60;">✅ 開啟權限</button>
+            <button class="admin-ctrl-btn" onclick="db.ref('gameState').update({canToss:false})" style="background:#d35400;">❌ 停止權限</button>
+            <button class="admin-ctrl-btn" onclick="clearAllRecords()" style="background:#c0392b; margin-left: 20px;">🧹 清除紀錄</button>
         </div>
     </div>
 
@@ -138,6 +143,16 @@
         document.getElementById('current-user-tag').innerText = "信眾：" + myName;
     }
 
+    // 清除紀錄功能 (僅限主持人)
+    function clearAllRecords() {
+        if (confirm("⚠️ 注意：這將清空所有功德榜、排隊名單、歷史紀錄與當前進度！確定要執行嗎？")) {
+            db.ref('/').remove().then(() => {
+                alert("紀錄已全數清空。");
+                location.reload(); // 重新整理頁面以重置本地狀態
+            });
+        }
+    }
+
     db.ref('gameState').on('value', snap => {
         const state = snap.val() || {};
         const active = state.activeUser || "";
@@ -171,16 +186,9 @@
             document.getElementById('status-msg').innerText = "結果：" + res;
             
             if (res === "聖杯") {
-                // 核心修正 1：先獲取最新計數，再分別更新
                 db.ref('currentSheng').transaction(current => {
                     const nextCount = (current || 0) + 1;
-                    
-                    // 核心修正 2：明確指定更新「我本人」的紀錄，不參考 currentSheng
-                    // 這樣就算別人的 currentSheng 變動，也不會寫入我的紀錄
-                    db.ref('leaderboard/' + myName).transaction(oldRecord => {
-                        return Math.max(oldRecord || 0, nextCount);
-                    });
-                    
+                    db.ref('leaderboard/' + myName).transaction(oldRecord => Math.max(oldRecord || 0, nextCount));
                     return nextCount;
                 });
                 btn.disabled = false;
@@ -190,27 +198,6 @@
             db.ref('history').push({ name: myName, res: res, time: Date.now() });
         }, 1000);
     }
-
-    // 核心修正 3：功德榜渲染邏輯
-    db.ref('leaderboard').on('value', snap => {
-        let scores = [];
-        snap.forEach(child => {
-            scores.push({ name: child.key, val: child.val() });
-        });
-        
-        // 前端手動進行降序排序 (由大到小)
-        scores.sort((a, b) => b.val - a.val);
-        
-        let html = "";
-        scores.forEach((item, index) => {
-            const isFirst = index === 0 && item.val > 0;
-            html += `<div class="rank-item ${isFirst ? 'top' : ''}">
-                        <span>${index + 1}. ${item.name}</span>
-                        <b>${item.val} 次</b>
-                     </div>`;
-        });
-        document.getElementById('rank-list').innerHTML = html || "尚無紀錄";
-    });
 
     function listenToQueue() {
         db.ref('queue').on('value', snap => {
@@ -228,6 +215,21 @@
         db.ref('queue/' + name).remove();
         db.ref('currentSheng').set(0);
     }
+
+    db.ref('leaderboard').on('value', snap => {
+        let scores = [];
+        snap.forEach(child => { scores.push({ name: child.key, val: child.val() }); });
+        scores.sort((a, b) => b.val - a.val);
+        let html = "";
+        scores.forEach((item, index) => {
+            const isFirst = index === 0 && item.val > 0;
+            html += `<div class="rank-item ${isFirst ? 'top' : ''}">
+                        <span>${index + 1}. ${item.name}</span>
+                        <b>${item.val} 次</b>
+                     </div>`;
+        });
+        document.getElementById('rank-list').innerHTML = html || "尚無紀錄";
+    });
 
     db.ref('currentSheng').on('value', snap => {
         document.getElementById('sheng-count').innerText = snap.val() || 0;
