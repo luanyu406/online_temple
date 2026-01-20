@@ -3,165 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聖杯挑戰賽 - 功德排行榜版</title>
+    <title>聖杯挑戰賽 - 專業連線版</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
         :root { --gold: #f1c40f; --red: #8b0000; --dark: #1a0505; }
-        body { margin: 0; background: var(--dark); color: var(--gold); font-family: sans-serif; display: flex; overflow-x: hidden; }
+        body { margin: 0; background: var(--dark); color: var(--gold); font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
 
-        /* 左側功德榜 (PC版顯示，手機版隱藏或置底) */
+        /* 左側功德榜 */
         #leaderboard { 
-            width: 250px; background: rgba(20,0,0,0.8); border-right: 2px solid var(--gold); 
-            height: 100vh; overflow-y: auto; padding: 15px; flex-shrink: 0;
+            width: 220px; background: rgba(30,5,5,0.95); border-right: 2px solid var(--gold); 
+            display: flex; flex-direction: column; flex-shrink: 0;
         }
-        .rank-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #441010; font-size: 0.9rem; }
-        
+        .rank-header { padding: 15px; text-align: center; border-bottom: 1px solid var(--gold); background: var(--red); color: white; }
+        #rank-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .rank-item { display: flex; justify-content: space-between; padding: 8px 5px; border-bottom: 1px solid rgba(241,196,15,0.2); font-size: 0.9rem; }
+
         /* 主遊戲區 */
-        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
 
-        /* 主持人面板 */
-        #admin-panel { width: 100%; background: #2d0a0a; border-bottom: 2px solid var(--gold); padding: 10px; display: none; text-align: center; }
-        .queue-box { border: 1px dashed var(--gold); margin: 5px; padding: 5px; border-radius: 5px; }
+        /* 主持人面板 (強烈顯示) */
+        #admin-panel { 
+            background: #4a1010; border-bottom: 3px solid #ff0000; padding: 15px; 
+            display: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .admin-section { margin: 10px 0; padding: 10px; border: 1px solid var(--gold); border-radius: 5px; background: rgba(0,0,0,0.3); }
+        .queue-btn { background: #8e44ad; color: white; border: none; padding: 8px 12px; margin: 3px; border-radius: 4px; cursor: pointer; }
 
-        /* 3D 笅杯區 */
-        .stage { perspective: 1200px; height: 160px; display: flex; justify-content: center; align-items: center; gap: 20px; margin: 20px 0; }
-        .cup { width: 55px; height: 90px; position: relative; transform-style: preserve-3d; }
-        .cup-side { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 50% 10% 10% 50% / 50% 10% 10% 50%; display: flex; align-items: center; justify-content: center; }
+        /* 遊戲核心元件 */
+        .game-display { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .stage { perspective: 1000px; height: 150px; display: flex; gap: 25px; margin: 20px 0; }
+        .cup { width: 50px; height: 90px; position: relative; transform-style: preserve-3d; }
+        .cup-side { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 50% 10% 10% 50% / 50% 10% 10% 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .cup-front { background: #b30000; color: white; transform: rotateY(0deg); }
         .cup-back { background: #edc453; color: #8a4b00; transform: rotateY(180deg); }
-        
-        @keyframes toss {
+        .animating { animation: jiaoToss 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards; }
+        @keyframes jiaoToss {
             0% { transform: translateY(0) rotateX(0); }
-            50% { transform: translateY(-200px) rotateX(1080deg); }
-            100% { transform: translateY(0) rotateX(var(--final-x)); }
+            50% { transform: translateY(-200px) rotateX(1080deg) rotateY(180deg); }
+            100% { transform: translateY(0) rotateX(var(--final-x)) rotateY(0deg); }
         }
-        .animating { animation: toss 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards; }
 
-        .btn-toss { background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505; padding: 12px 40px; font-size: 1.4rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; }
-        .btn-toss:disabled { background: #444; color: #888; }
-
-        /* 底部最近紀錄 */
-        .recent-history { width: 90%; max-width: 400px; margin-top: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 10px; }
-
-        /* 響應式：手機版將榜單隱藏改為按鈕開啟 */
-        @media (max-width: 768px) {
-            #leaderboard { position: fixed; left: -250px; z-index: 3000; transition: 0.3s; }
-            #leaderboard.open { left: 0; }
+        .btn-toss { 
+            background: linear-gradient(180deg, #f1c40f, #b8860b); color: #1a0505; 
+            padding: 15px 60px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(241,196,15,0.4);
         }
+        .btn-toss:disabled { background: #444; color: #888; box-shadow: none; }
+
+        /* 入口遮罩 */
+        #login-overlay { position: fixed; inset: 0; background: #000; z-index: 5000; display: flex; align-items: center; justify-content: center; }
+        
+        /* 最近紀錄 */
+        .recent-box { width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-top: 10px; }
+        
+        @media (max-width: 600px) { #leaderboard { display: none; } }
     </style>
 </head>
 <body>
 
 <div id="leaderboard">
-    <h3 style="text-align: center; color: var(--gold);">🏆 聖杯功德榜</h3>
-    <div id="rank-list">載入中...</div>
+    <div class="rank-header">🏆 功德榜</div>
+    <div id="rank-list"></div>
 </div>
 
 <div class="main-content">
     <div id="admin-panel">
-        <div class="queue-box">
-            <b>⏳ 等待排隊：</b> <div id="admin-queue"></div>
+        <h3 style="margin:0 0 10px 0; color:#fff;">👑 廟方管理中心</h3>
+        <div class="admin-section">
+            <div style="margin-bottom:5px;">⏳ 待擲名單 (點擊點名)：</div>
+            <div id="admin-queue-list"></div>
         </div>
-        <div>
-            <button onclick="db.ref('gameState').update({canToss:true})" style="background:#27ae60; color:white; padding:5px 10px;">✅ 開啟擲笅</button>
-            <button onclick="db.ref('gameState').update({canToss:false})" style="background:#c0392b; color:white; padding:5px 10px;">❌ 暫停(收回權限)</button>
+        <div class="admin-section">
+            <button onclick="db.ref('gameState').update({canToss:true})" style="background:#27ae60; color:white; padding:10px 20px; font-weight:bold; border:none; border-radius:5px;">✅ 開啟擲笅權限</button>
+            <button onclick="db.ref('gameState').update({canToss:false})" style="background:#c0392b; color:white; padding:10px 20px; font-weight:bold; border:none; border-radius:5px;">❌ 中斷/關閉權限</button>
+            <button onclick="if(confirm('確定重置所有數據？')) db.ref('/').remove()" style="background:#555; color:white; padding:10px 20px; border:none; border-radius:5px; margin-left:10px;">🧹 重置</button>
         </div>
     </div>
 
-    <div style="text-align:center; padding: 20px;">
-        <h2 id="current-name">歡迎蒞臨</h2>
-        <div style="font-size: 2.5rem; font-weight: bold;">目前聖杯：<span id="sheng-count">0</span></div>
+    <div id="login-overlay">
+        <div style="text-align:center; background:#222; padding:30px; border:1px solid var(--gold); border-radius:15px;">
+            <h2>🙏 參加擲笅登記</h2>
+            <input type="text" id="join-name" placeholder="輸入您的姓名" style="padding:10px; width:200px; text-align:center;"><br><br>
+            <button class="btn-toss" style="padding:10px 30px; font-size:1.2rem;" onclick="doJoin()">登記排隊</button>
+        </div>
+    </div>
+
+    <div class="game-display">
+        <h2 id="current-user-tag">請先登記</h2>
+        <div style="font-size: 2.5rem; font-weight: bold; color:#ff4d4d;">連續聖杯：<span id="sheng-count">0</span></div>
         
         <div class="stage">
             <div id="c1" class="cup"><div class="cup-side cup-front">陰</div><div class="cup-side cup-back">陽</div></div>
             <div id="c2" class="cup"><div class="cup-side cup-front">陰</div><div class="cup-side cup-back">陽</div></div>
         </div>
         
-        <div id="status-msg" style="height:30px; margin-bottom:10px;"></div>
+        <div id="status-msg" style="height:30px; font-size:1.2rem; color:#fff; margin-bottom:10px;"></div>
         <button id="toss-btn" class="btn-toss" onclick="handleToss()" disabled>等待擲笅</button>
-    </div>
 
-    <div class="recent-history">
-        <div style="text-align:center; font-size:0.8rem; border-bottom:1px solid #444;">📜 最近 10 次成果</div>
-        <div id="recent-list"></div>
+        <div class="recent-box">
+            <div style="text-align:center; font-size:0.8rem; border-bottom:1px solid #444; margin-bottom:5px;">最近 10 次擲笅</div>
+            <div id="recent-history-list"></div>
+        </div>
     </div>
 </div>
 
 <script>
-    // Firebase 配置 (套用您的 API Key)
-    const firebaseConfig = { /* ...您提供的配置... */ };
+    // Firebase 配置 (請確保這部分資訊完全正確)
+    const firebaseConfig = {
+        apiKey: "AIzaSyD2Jw4ZZlCKzL0eLfH5znZidiUXpNjLTi0",
+        authDomain: "templegame-ae6b2.firebaseapp.com",
+        databaseURL: "https://templegame-ae6b2-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "templegame-ae6b2",
+        storageBucket: "templegame-ae6b2.firebasestorage.app",
+        messagingSenderId: "32887114990",
+        appId: "1:32887114990:web:490dd8bd971211002c77ff"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'y';
-    
-    let myName = "";
-    let mySheng = 0;
 
-    // 關鍵邏輯 1：監聽按鈕文字與狀態
+    // 強制偵測管理員身分
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdmin = urlParams.get('admin') === 'y';
+    let myName = "";
+    let currentSheng = 0;
+
+    if (isAdmin) {
+        document.getElementById('admin-panel').style.display = 'block';
+        document.getElementById('login-overlay').style.display = 'none';
+        listenToQueue();
+    }
+
+    // 加入排隊
+    function doJoin() {
+        const name = document.getElementById('join-name').value.trim();
+        if(!name) return alert("請輸入姓名");
+        myName = name;
+        db.ref('queue/' + myName).set({ name: myName, joinedAt: Date.now() });
+        db.ref('queue/' + myName).onDisconnect().remove(); // 離線自動移出排隊
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('current-user-tag').innerText = "信眾：" + myName;
+    }
+
+    // 監聽全局狀態 (控制按鈕文字與權限)
     db.ref('gameState').on('value', snap => {
         const state = snap.val() || {};
         const active = state.activeUser || "";
         const can = state.canToss || false;
         const btn = document.getElementById('toss-btn');
+        const msg = document.getElementById('status-msg');
+
+        if (isAdmin) {
+            document.getElementById('current-user-tag').innerText = active ? `正在擲：${active}` : "等待點名";
+        }
 
         if (myName === active) {
-            // 是當前使用者
             if (can) {
                 btn.innerText = "擲 笅";
                 btn.disabled = false;
+                msg.innerText = "🌟 神明指示，請擲笅！";
             } else {
                 btn.innerText = "等待擲笅";
                 btn.disabled = true;
+                msg.innerText = "⏳ 請等待主持人開啟權限";
             }
         } else {
-            // 非當前使用者
             btn.innerText = "等待擲笅";
             btn.disabled = true;
+            msg.innerText = active ? `目前輪到 ${active}` : "請等待點名";
         }
     });
 
-    // 關鍵邏輯 2：雙佇列與排行榜
-    // 監聽排行榜 (功德榜 - 依聖杯數排序)
-    db.ref('leaderboard').orderByValue().limitToLast(20).on('value', snap => {
-        let ranks = [];
-        snap.forEach(child => {
-            ranks.push({ name: child.key, count: child.val() });
-        });
-        ranks.reverse(); // 由大到小
+    // 監聽功德榜 (依聖杯數排序)
+    db.ref('leaderboard').orderByValue().on('value', snap => {
+        let list = [];
+        snap.forEach(c => { list.push({ name: c.key, score: c.val() }); });
+        list.reverse();
         let html = "";
-        ranks.forEach((r, i) => {
-            html += `<div class="rank-item"><span>${i+1}. ${r.name}</span><b>${r.count}次</b></div>`;
+        list.forEach((u, i) => {
+            html += `<div class="rank-item"><span>${i+1}. ${u.name}</span><b>${u.score}</b></div>`;
         });
         document.getElementById('rank-list').innerHTML = html;
     });
 
-    // 關鍵邏輯 3：主持人端的排隊名單
-    if (isAdmin) {
-        document.getElementById('admin-panel').style.display = 'block';
+    // 管理員功能：監聽排隊名單
+    function listenToQueue() {
         db.ref('queue').on('value', snap => {
             const list = snap.val() || {};
             let html = "";
             Object.keys(list).forEach(p => {
-                html += `<button onclick="startPlayer('${p}')" style="margin:2px; padding:4px;">${p}</button>`;
+                html += `<button class="queue-btn" onclick="assignPlayer('${p}')">${p}</button>`;
             });
-            document.getElementById('admin-queue').innerHTML = html;
+            document.getElementById('admin-queue-list').innerHTML = html || "目前無人排隊";
         });
     }
 
-    function startPlayer(name) {
-        // 設定進行中，並從排隊中移除，加入已參加紀錄（或於結束時加入）
+    function assignPlayer(name) {
+        // 點名後：1. 設定進行中人員 2. 預設權限關閉 3. 從排隊移出
         db.ref('gameState').set({ activeUser: name, canToss: false });
         db.ref('queue/' + name).remove();
-        db.ref('shengTemp').set(0); // 重置暫存計數
+        db.ref('currentSheng').set(0); // 重置當前聖杯計數
     }
 
+    // 擲笅物理邏輯
     function handleToss() {
-        // ... (3D 物理動畫邏輯) ...
-        // 成功聖杯時：
-        // mySheng++;
-        // db.ref('leaderboard/' + myName).set(mySheng); // 即時更新功德榜
+        const btn = document.getElementById('toss-btn');
+        btn.disabled = true;
+        
+        const r1 = Math.random() > 0.5 ? 0 : 180;
+        const r2 = Math.random() > 0.5 ? 0 : 180;
+        const c1 = document.getElementById('c1'), c2 = document.getElementById('c2');
+        
+        c1.style.setProperty('--final-x', (1440 + r1) + 'deg');
+        c2.style.setProperty('--final-x', (1440 + r2) + 'deg');
+        c1.classList.remove('animating'); c2.classList.remove('animating');
+        void c1.offsetWidth;
+        c1.classList.add('animating'); c2.classList.add('animating');
+
+        setTimeout(() => {
+            let res = (r1 !== r2) ? "聖杯" : (r1 === 0 ? "笑杯" : "陰杯");
+            if (res === "聖杯") {
+                db.ref('currentSheng').transaction(c => (c || 0) + 1, (err, committed, snap) => {
+                    const newScore = snap.val();
+                    document.getElementById('sheng-count').innerText = newScore;
+                    // 更新功德榜 (僅記錄最高分)
+                    db.ref('leaderboard/' + myName).transaction(old => Math.max(old || 0, newScore));
+                    btn.disabled = false;
+                });
+            } else {
+                db.ref('gameState').update({ canToss: false }); // 失敗或中斷，權限關閉
+            }
+            db.ref('history').push({ name: myName, res: res, time: Date.now() });
+        }, 1000);
     }
+
+    // 監聽最近 10 次紀錄
+    db.ref('history').limitToLast(10).on('value', snap => {
+        const data = snap.val() || {};
+        let html = "";
+        Object.values(data).reverse().forEach(h => {
+            html += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:2px;"><span>${h.name}</span><span style="color:${h.res==='聖杯'?'#00ff00':'#ff4d4d'}">${h.res}</span></div>`;
+        });
+        document.getElementById('recent-history-list').innerHTML = html;
+    });
+
+    // 監聽當前聖杯計數
+    db.ref('currentSheng').on('value', snap => {
+        document.getElementById('sheng-count').innerText = snap.val() || 0;
+    });
 </script>
 </body>
 </html>
